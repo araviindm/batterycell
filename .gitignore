@@ -3,11 +3,9 @@
 __pycache__/
 db.sqlite3
 *.env
-
-# Frontend
-node_modules/
-public/
-.env
+env
+barcode_images
+battery_images
 
 # Ignore editor/IDE files
 *.swp
