@@ -1,0 +1,16 @@
+# Django backend
+*.pyc
+__pycache__/
+db.sqlite3
+*.env
+
+# Frontend
+node_modules/
+public/
+.env
+
+# Ignore editor/IDE files
+*.swp
+*.swo
+.vscode/
+.idea/
