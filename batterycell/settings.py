@@ -54,6 +54,7 @@ MIDDLEWARE = [
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173'
 ]
+APPEND_SLASH = False
 ROOT_URLCONF = 'batterycell.urls'
 
 TEMPLATES = [

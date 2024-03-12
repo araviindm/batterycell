@@ -24,6 +24,18 @@ def battery_cell(request, format=None):
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
+            print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_battery_cell_by_id(request, id, format=None):
+    try:
+        battery_cell = BatteryCell.objects.get(pk=id)
+    except BatteryCell.DoesNotExist:
+        return Response({'error': 'Battery cell not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BatteryCellSerializer(battery_cell)
+    return Response(serializer.data, status=status.HTTP_200_OK)

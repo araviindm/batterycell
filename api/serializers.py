@@ -1,8 +1,13 @@
+
 import os
+import tempfile
 import uuid
 from django.conf import settings
 from rest_framework import serializers
 from .models import BatteryCell
+
+from barcode import generate
+from barcode.writer import ImageWriter
 
 import firebase_admin
 from firebase_admin import credentials, storage
@@ -16,7 +21,6 @@ firebase_admin.initialize_app(
 
 
 class BatteryCellSerializer(serializers.ModelSerializer):
-    barcode_image = serializers.ImageField(required=False)
     image = serializers.ImageField(required=False)
 
     class Meta:
@@ -24,38 +28,48 @@ class BatteryCellSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
-        barcode_image_file = validated_data.pop('barcode_image', None)
         image_file = validated_data.pop('image', None)
 
-        battery_cell = BatteryCell.objects.create(**validated_data)
+        cell_id = str(uuid.uuid4())
+        barcode_image_url = self.generate_barcode_image(cell_id)
 
-        if barcode_image_file:
-            # Save barcode image to Firebase Storage and get URL
-            barcode_image_url = upload_to_firebase_storage(barcode_image_file)
-            battery_cell.barcode_image_url = barcode_image_url
+        battery_cell = BatteryCell.objects.create(
+            cell_id=cell_id,
+            barcode_image_url=barcode_image_url,
+            **validated_data
+        )
 
         if image_file:
-            # Save regular image to Firebase Storage and get URL
-            image_url = upload_to_firebase_storage(image_file)
+            filename = image_file.name
+            unique_filename = str(uuid.uuid4())
+            _, extension = os.path.splitext(filename)
+            filename_with_extension = f"{unique_filename}{extension}"
+
+            image_url = self.upload_to_firebase_storage(
+                image_file, filename_with_extension)
             battery_cell.image_url = image_url
 
         battery_cell.save()
 
         return battery_cell
 
+    def generate_barcode_image(self, cell_id):
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            generate('code128', str(cell_id),
+                     output=temp_file, writer=ImageWriter())
+            temp_file.close()
+            with open(temp_file.name, 'rb') as file:
+                barcode_image_url = self.upload_to_firebase_storage(
+                    file, filename=f'{str(cell_id)}.png')
+            return barcode_image_url
 
-def upload_to_firebase_storage(file):
-    filename = file.name
-    unique_filename = str(uuid.uuid4())
-    _, extension = os.path.splitext(filename)
-    filename_with_extension = f"{unique_filename}{extension}"
+    def upload_to_firebase_storage(self, file, filename):
+        bucket = storage.bucket()
 
-    bucket = storage.bucket()
+        blob = bucket.blob(filename)
+        blob.upload_from_file(file)
+        blob.make_public()
 
-    blob = bucket.blob(filename_with_extension)
-    blob.upload_from_file(file)
-    blob.make_public()
+        url = blob.public_url
 
-    url = blob.public_url
-
-    return url
+        return url
