@@ -4,8 +4,7 @@ __pycache__/
 db.sqlite3
 *.env
 env
-barcode_images
-battery_images
+images
 
 # Ignore editor/IDE files
 *.swp

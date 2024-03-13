@@ -39,7 +39,7 @@ class BatteryCellSerializer(serializers.ModelSerializer):
             filename_with_extension = f"{unique_filename}{extension}"
 
             image_url = self.upload_to_local_storage(
-                image_file, filename_with_extension, "battery_images")
+                image_file, filename_with_extension, "images")
             battery_cell.image_url = image_url
 
         battery_cell.save()
@@ -53,7 +53,7 @@ class BatteryCellSerializer(serializers.ModelSerializer):
             temp_file.close()
             with open(temp_file.name, 'rb') as file:
                 barcode_image_url = self.upload_to_local_storage(
-                    file, f'{str(cell_id)}.png', "barcode_images")
+                    file, f'{str(cell_id)}.png', "images")
             return barcode_image_url
 
     def upload_to_local_storage(self, file, filename, folder_name):
