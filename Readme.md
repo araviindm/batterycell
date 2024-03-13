@@ -1,4 +1,4 @@
-### Battery cell DRF
+# Battery cell DRF
 
 ## .env file
 
