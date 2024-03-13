@@ -53,11 +53,11 @@ MIDDLEWARE = [
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
-    'https://*.vercel.app'
+    'https://*.pythonanywhere.com'
 ]
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173',
-    'https://*.vercel.app'
+    'https://*.pythonanywhere.com'
 ]
 ROOT_URLCONF = 'batterycell.urls'
 
