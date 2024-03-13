@@ -51,6 +51,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    'https://*.vercel.app'
+]
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173',
     'https://*.vercel.app'
