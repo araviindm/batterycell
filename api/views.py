@@ -1,5 +1,6 @@
 import json
 from matplotlib import pyplot as plt
+import numpy as np
 import plotly.graph_objects as go
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -58,7 +59,7 @@ def generate_plot(request):
     file = request.FILES['file']
 
     try:
-        df = pd.read_csv(file, sep='\t', header=None)
+        df = pd.read_csv(file, delimiter="\t", header=None)
         df = df[0].str.split(',', expand=True).astype(float)
         frequency = df.iloc[:, 0].values
         impedance_real = df.iloc[:, 1].values
@@ -83,7 +84,7 @@ def generate_plot(request):
             json_plot_data.append(json_trace)
 
         plot_data_json = json.dumps(json_plot_data)
-        return Response({'plot': plot_data_json}, status=status.HTTP_200_OK)
+        return Response({plot_data_json}, status=status.HTTP_200_OK)
     except Exception as e:
 
         return Response({'error': str(e)}, status=status.HTTP_202_ACCEPTED)
@@ -98,3 +99,25 @@ def convert_to_plotly(ax):
         trace = go.Scatter(x=x, y=y, name=name)
         traces.append(trace)
     return traces
+
+
+@api_view(['POST'])
+def get_battery_health(request, format=None):
+
+    if 'file' not in request.FILES:
+        return Response({'error': 'File not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+    file = request.FILES['file']
+    try:
+        df = pd.read_csv(file, delimiter="\t", header=None)
+        df = df[0].str.split(',', expand=True).astype(float)
+        impedance_real = df.iloc[:, 1].values
+
+        Rb_current = np.min(impedance_real)
+        Rb_max = np.max(impedance_real)
+        SoH_percentage = (Rb_current / Rb_max) * 100
+
+        return Response(SoH_percentage, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
