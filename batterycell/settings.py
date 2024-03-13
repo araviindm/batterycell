@@ -53,11 +53,9 @@ MIDDLEWARE = [
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
-    'https://*.pythonanywhere.com'
 ]
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173',
-    'https://*.pythonanywhere.com'
 ]
 ROOT_URLCONF = 'batterycell.urls'
 
