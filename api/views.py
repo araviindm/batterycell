@@ -1,8 +1,6 @@
-import base64
-import io
-import os
-import matplotlib.pyplot as plt
-import numpy as np
+import json
+from matplotlib import pyplot as plt
+import plotly.graph_objects as go
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, parser_classes
@@ -68,20 +66,35 @@ def generate_plot(request):
 
         impedance_complex = impedance_real + 1j * impedance_imag
 
-        plt.rcParams['figure.figsize'] = (10, 10)
-        plot_bode(frequency, impedance_complex)
+        plt.rcParams['figure.figsize'] = (12, 12)
+        bode_plot_data = plot_bode(frequency, impedance_complex)
 
-        plt.xlabel('Frequency')
-        plt.ylabel('Impedance')
+        plot_data = []
+        for ax in bode_plot_data:
+            plot_data += convert_to_plotly(ax)
 
-        plt.savefig('bode_plot.png')
-        plt.close()
+        json_plot_data = []
+        for trace in plot_data:
+            json_trace = {
+                'name': trace.name,
+                'x': trace.x.tolist(),  # Convert ndarray to list
+                'y': trace.y.tolist()   # Convert ndarray to list
+            }
+            json_plot_data.append(json_trace)
 
-        with open('bode_plot.png', 'rb') as image_file:
-            plot_image_base64 = base64.b64encode(
-                image_file.read()).decode('utf-8')
-        os.remove('bode_plot.png')
-        return Response({'plot': plot_image_base64}, status=status.HTTP_200_OK)
+        plot_data_json = json.dumps(json_plot_data)
+        return Response({'plot': plot_data_json}, status=status.HTTP_200_OK)
     except Exception as e:
 
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': str(e)}, status=status.HTTP_202_ACCEPTED)
+
+
+def convert_to_plotly(ax):
+    traces = []
+    for line in ax.lines:
+        x = line.get_xdata()
+        y = line.get_ydata()
+        name = line.get_label()
+        trace = go.Scatter(x=x, y=y, name=name)
+        traces.append(trace)
+    return traces
