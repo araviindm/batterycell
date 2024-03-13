@@ -1,9 +1,5 @@
 # Battery cell DRF
 
-## .env file
-
-VITE_API_URL=http://127.0.0.1:8000 Backend URL
-
 ## To run the app locally
 
 - Create a virtual environment inside the project directory
