@@ -50,44 +50,26 @@ def get_battery_cell_by_id(request, id, format=None):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-@parser_classes([MultiPartParser, FormParser])
-def generate_plot(request):
-    if 'file' not in request.FILES:
-        return Response({'error': 'File not found'}, status=status.HTTP_400_BAD_REQUEST)
+def generate_plot(frequency, impedance_real, impedance_imag):
 
-    file = request.FILES['file']
+    impedance_complex = impedance_real + 1j * impedance_imag
 
-    try:
-        df = pd.read_csv(file, delimiter="\t", header=None)
-        df = df[0].str.split(',', expand=True).astype(float)
-        frequency = df.iloc[:, 0].values
-        impedance_real = df.iloc[:, 1].values
-        impedance_imag = df.iloc[:, 2].values
+    plt.rcParams['figure.figsize'] = (12, 12)
+    bode_plot_data = plot_bode(frequency, impedance_complex)
 
-        impedance_complex = impedance_real + 1j * impedance_imag
+    plot_data = []
+    for ax in bode_plot_data:
+        plot_data += convert_to_plotly(ax)
 
-        plt.rcParams['figure.figsize'] = (12, 12)
-        bode_plot_data = plot_bode(frequency, impedance_complex)
-
-        plot_data = []
-        for ax in bode_plot_data:
-            plot_data += convert_to_plotly(ax)
-
-        json_plot_data = []
-        for trace in plot_data:
-            json_trace = {
-                'name': trace.name,
-                'x': trace.x.tolist(),  # Convert ndarray to list
-                'y': trace.y.tolist()   # Convert ndarray to list
-            }
-            json_plot_data.append(json_trace)
-
-        plot_data_json = json.dumps(json_plot_data)
-        return Response({plot_data_json}, status=status.HTTP_200_OK)
-    except Exception as e:
-
-        return Response({'error': str(e)}, status=status.HTTP_202_ACCEPTED)
+    json_plot_data = []
+    for trace in plot_data:
+        json_trace = {
+            'name': trace.name,
+            'x': trace.x.tolist(),  # Convert ndarray to list
+            'y': trace.y.tolist()   # Convert ndarray to list
+        }
+        json_plot_data.append(json_trace)
+    return json.dumps(json_plot_data)
 
 
 def convert_to_plotly(ax):
@@ -101,23 +83,60 @@ def convert_to_plotly(ax):
     return traces
 
 
-@api_view(['POST'])
-def get_battery_health(request, format=None):
+def get_battery_health(impedance_real):
 
+    Rb_current = np.min(impedance_real)
+    Rb_max = np.max(impedance_real)
+    SoH_percentage = (Rb_current / Rb_max) * 100
+
+    return SoH_percentage
+
+
+def compute_circuit_parameters(frequency, impedance_real, impedance_imag):
+    # Electrolyte resistance
+    Rb = np.mean(impedance_real)
+    # Resistance due to SEI layer
+    R_SEI = np.max(impedance_real) - np.min(impedance_real)
+    # Capacitance due to SEI layer (example computation)
+    CPE_SEI = np.std(impedance_imag)
+    # Charge-transfer resistance
+    R_CT = np.mean(impedance_real) + np.mean(impedance_imag)
+    # Double-layer capacitance
+    CPE_DL = np.std(impedance_real) + np.std(impedance_imag)
+    # Frequency-dependent Warburg impedance
+    W_Warburg = np.mean(frequency)
+
+    return {
+        'Rb': Rb,
+        'R_SEI': R_SEI,
+        'CPE_SEI': CPE_SEI,
+        'R_CT': R_CT,
+        'CPE_DL': CPE_DL,
+        'W_Warburg': W_Warburg
+    }
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def compute(request):
     if 'file' not in request.FILES:
         return Response({'error': 'File not found'}, status=status.HTTP_400_BAD_REQUEST)
 
     file = request.FILES['file']
+
     try:
         df = pd.read_csv(file, delimiter="\t", header=None)
         df = df[0].str.split(',', expand=True).astype(float)
+        frequency = df.iloc[:, 0].values
         impedance_real = df.iloc[:, 1].values
+        impedance_imag = df.iloc[:, 2].values
 
-        Rb_current = np.min(impedance_real)
-        Rb_max = np.max(impedance_real)
-        SoH_percentage = (Rb_current / Rb_max) * 100
-
-        return Response(SoH_percentage, status=status.HTTP_200_OK)
-
+        state_of_health = get_battery_health(impedance_real)
+        plot_data_json = generate_plot(
+            frequency, impedance_real, impedance_imag)
+        circuit_params = compute_circuit_parameters(
+            frequency, impedance_real, impedance_imag)
+        return Response([plot_data_json, state_of_health, circuit_params], status=status.HTTP_200_OK)
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'error': str(e)}, status=status.HTTP_202_ACCEPTED)
