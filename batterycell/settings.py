@@ -52,7 +52,8 @@ MIDDLEWARE = [
 ]
 
 CORS_ORIGIN_WHITELIST = [
-    'http://localhost:5173'
+    'http://localhost:5173',
+    'https://*.vercel.app'
 ]
 ROOT_URLCONF = 'batterycell.urls'
 

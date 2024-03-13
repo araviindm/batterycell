@@ -57,10 +57,12 @@ def generate_plot(frequency, impedance_real, impedance_imag):
     plt.rcParams['figure.figsize'] = (12, 12)
     bode_plot_data = plot_bode(frequency, impedance_complex)
 
+    # bode_plot_data to plotly data
     plot_data = []
     for ax in bode_plot_data:
         plot_data += convert_to_plotly(ax)
 
+    # Prepare data for plotly to recieve in front-end
     json_plot_data = []
     for trace in plot_data:
         json_trace = {
@@ -87,6 +89,7 @@ def get_battery_health(impedance_real):
 
     Rb_current = np.min(impedance_real)
     Rb_max = np.max(impedance_real)
+    # Formula
     SoH_percentage = (Rb_current / Rb_max) * 100
 
     return SoH_percentage
@@ -97,7 +100,7 @@ def compute_circuit_parameters(frequency, impedance_real, impedance_imag):
     Rb = np.mean(impedance_real)
     # Resistance due to SEI layer
     R_SEI = np.max(impedance_real) - np.min(impedance_real)
-    # Capacitance due to SEI layer (example computation)
+    # Capacitance due to SEI layer
     CPE_SEI = np.std(impedance_imag)
     # Charge-transfer resistance
     R_CT = np.mean(impedance_real) + np.mean(impedance_imag)
@@ -125,15 +128,16 @@ def compute(request):
     file = request.FILES['file']
 
     try:
+        # Split the three columns into frequency, impedance_real and impedance_imag
         df = pd.read_csv(file, delimiter="\t", header=None)
         df = df[0].str.split(',', expand=True).astype(float)
         frequency = df.iloc[:, 0].values
         impedance_real = df.iloc[:, 1].values
         impedance_imag = df.iloc[:, 2].values
 
-        state_of_health = get_battery_health(impedance_real)
         plot_data_json = generate_plot(
             frequency, impedance_real, impedance_imag)
+        state_of_health = get_battery_health(impedance_real)
         circuit_params = compute_circuit_parameters(
             frequency, impedance_real, impedance_imag)
         return Response([plot_data_json, state_of_health, circuit_params], status=status.HTTP_200_OK)
