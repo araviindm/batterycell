@@ -12,13 +12,6 @@ from barcode.writer import ImageWriter
 import firebase_admin
 from firebase_admin import credentials, storage
 
-credentials_path = os.path.join(
-    settings.BASE_DIR, 'batterycell_service_account_key.json')
-cred = credentials.Certificate(credentials_path)
-
-firebase_admin.initialize_app(
-    cred, {'storageBucket': 'batterycell-1f682.appspot.com'})
-
 
 class BatteryCellSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False)
@@ -45,8 +38,8 @@ class BatteryCellSerializer(serializers.ModelSerializer):
             _, extension = os.path.splitext(filename)
             filename_with_extension = f"{unique_filename}{extension}"
 
-            image_url = self.upload_to_firebase_storage(
-                image_file, filename_with_extension)
+            image_url = self.upload_to_local_storage(
+                image_file, filename_with_extension, "images")
             battery_cell.image_url = image_url
 
         battery_cell.save()
@@ -59,17 +52,18 @@ class BatteryCellSerializer(serializers.ModelSerializer):
                      output=temp_file, writer=ImageWriter())
             temp_file.close()
             with open(temp_file.name, 'rb') as file:
-                barcode_image_url = self.upload_to_firebase_storage(
-                    file, filename=f'{str(cell_id)}.png')
+                barcode_image_url = self.upload_to_local_storage(
+                    file, f'{str(cell_id)}.png', "images")
             return barcode_image_url
 
-    def upload_to_firebase_storage(self, file, filename):
-        bucket = storage.bucket()
+    def upload_to_local_storage(self, file, filename, folder_name):
+        folder_path = os.path.join(os.getcwd(), folder_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        filepath = os.path.join(folder_path, filename)
+        with open(filepath, 'wb') as f:
+            f.write(file.read())
 
-        blob = bucket.blob(filename)
-        blob.upload_from_file(file)
-        blob.make_public()
-
-        url = blob.public_url
-
-        return url
+        relative_url = os.path.join(folder_name, filename)
+        absolute_url = f"http://127.0.0.1:8000/{relative_url.replace(os.sep, '/')}"
+        return absolute_url
